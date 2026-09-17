@@ -1416,14 +1416,6 @@ ulam <- function( flist , data , pars , pars_omit , start , chains=1 , cores=1 ,
         return(list(file_stan,file_exe,do_compile))
     }
 
-    # choose the model constructor once; the mod$sample() calls below are shared by both engines
-    stan_model_prepare <- function( the_model ) {
-        if ( backend=="stanli" ) return( stanli::cstan_model( the_model ) )
-        require( cmdstanr , quietly=TRUE )
-        filex <- cmdstanr_model_write( the_model )
-        cmdstan_model( stan_file=filex[[1]], compile=filex[[3]], cpp_options=cpp_options, stanc_options=stanc_options )
-    }
-
     #if ( threads>1 ) 
     cpp_options[['stan_threads']] <- TRUE
 
@@ -1443,7 +1435,18 @@ ulam <- function( flist , data , pars , pars_omit , start , chains=1 , cores=1 ,
                     stanfit <- stan( model_code = model_code , data = data , pars=use_pars , chains=chains , cores=cores , iter=iter , control=control , warmup=warmup , ... )
                 else {
                     # use cmdstanr interface
-                    mod <- stan_model_prepare( model_code )
+                    if ( backend=="stanli" ) {
+                        mod <- stanli::cstan_model( model_code )
+                    } else {
+                    require( cmdstanr , quietly=TRUE )
+                    filex <- cmdstanr_model_write( model_code )
+                    mod <- cmdstan_model(
+                        stan_file=filex[[1]],
+                      # exe_file=filex[[2]],
+                        compile=filex[[3]],
+                        cpp_options=cpp_options,
+                        stanc_options=stanc_options )
+                    }
                     # set_num_threads( threads )
                     # iter means only post-warmup samples for cmdstanr
                     # so need to compute iter explicitly
@@ -1467,7 +1470,18 @@ ulam <- function( flist , data , pars , pars_omit , start , chains=1 , cores=1 ,
                 } else {
                     # SAME AS ABOVE FOR NOW - how to referece exe?
                     # use cmdstanr interface
-                    mod <- stan_model_prepare( model_code )
+                    if ( backend=="stanli" ) {
+                        mod <- stanli::cstan_model( model_code )
+                    } else {
+                    require( cmdstanr , quietly=TRUE )
+                    filex <- cmdstanr_model_write( model_code )
+                    mod <- cmdstan_model(
+                        stan_file=filex[[1]],
+                      # exe_file=filex[[2]],
+                        compile=filex[[3]],
+                        cpp_options=cpp_options,
+                        stanc_options=stanc_options )
+                    }
                     # set_num_threads( threads )
                     # iter means only post-warmup samples for cmdstanr
                     # so need to compute iter explicitly
@@ -1498,7 +1512,18 @@ ulam <- function( flist , data , pars , pars_omit , start , chains=1 , cores=1 ,
             #    stanfit <- stan( fit = prev_stanfit_object , data = data , pars=use_pars , 
             #             chains=chains , cores=cores , iter=iter , control=control , init=f_init , warmup=warmup , ... )
             # use cmdstanr interface
-                    mod <- stan_model_prepare( model_code )
+                    if ( backend=="stanli" ) {
+                        mod <- stanli::cstan_model( model_code )
+                    } else {
+                    require( cmdstanr , quietly=TRUE )
+                    filex <- cmdstanr_model_write( model_code )
+                    mod <- cmdstan_model(
+                        stan_file=filex[[1]],
+                      # exe_file=filex[[2]],
+                        compile=filex[[3]],
+                        cpp_options=cpp_options,
+                        stanc_options=stanc_options )
+                    }
                     # set_num_threads( threads )
                     # iter means only post-warmup samples for cmdstanr
                     # so need to compute iter explicitly
