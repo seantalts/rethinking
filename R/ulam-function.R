@@ -40,7 +40,7 @@ ulam <- function( flist , data , pars , pars_omit , start , chains=1 , cores=1 ,
     prev_stanfit <- FALSE
     if ( class(flist)=="ulam" ) {
         prev_stanfit <- TRUE
-        prev_stanfit_object <- attr(flist,"cstanfit")
+        prev_stanfit_object <- attr(flist,"stanfit")
         if ( missing(data) ) data <- flist@data
         flist <- flist@formula
     }
@@ -1375,12 +1375,11 @@ ulam <- function( flist , data , pars , pars_omit , start , chains=1 , cores=1 ,
     if ( log_lik==TRUE ) use_pars <- c( use_pars , "log_lik" )
     if ( length(pars_omit)>0 ) {
         # remove these names from use_pars
-        idx <- which( pars_omit %in% use_pars )
-        if ( length(idx)>0 ) use_pars <- use_pars[ -idx ]
+        use_pars <- setdiff(use_pars, pars_omit)
     }
 
     # reverse order of use_pars, so names in formula order
-    use_pars <- use_pars[ length(use_pars):1 ]
+    use_pars <- rev(use_pars)
 
     cmdstanr_model_write <- function( the_model ) {
         # make temp name from model code md5 hash
@@ -1411,17 +1410,28 @@ ulam <- function( flist , data , pars , pars_omit , start , chains=1 , cores=1 ,
 
     # fire lasers pew pew
     if ( sample==TRUE ) {
-        if ( length(start)==0 ) {
+        if ( cmdstan==FALSE ) {
+            rstan_model <- list(model_code=model_code)
+            if ( prev_stanfit && inherits(prev_stanfit_object,"stanfit") &&
+                 identical(trimws(as.character(prev_stanfit_object@stanmodel@model_code)), trimws(model_code)) )
+                rstan_model <- list(fit=prev_stanfit_object)
+        }
+        if ( cmdstan==FALSE && length(start)>0 ) {
+            f_init <- if (is.function(start)) start else function() start
+            stanfit <- do.call(rstan::stan, c(rstan_model, list(data=data, pars=use_pars,
+                chains=chains, cores=cores, iter=iter, warmup=warmup,
+                control=control, init=f_init, ...)))
+        } else if ( length(start)==0 ) {
             # without explicit start list
             if ( prev_stanfit==FALSE ) {
                 if ( cmdstan==FALSE )
                     # rstan interface
-                    stanfit <- stan( model_code = model_code , data = data , pars=use_pars , chains=chains , cores=cores , iter=iter , control=control , warmup=warmup , ... )
+                    stanfit <- rstan::stan( model_code = model_code , data = data , pars=use_pars , chains=chains , cores=cores , iter=iter , control=control , warmup=warmup , ... )
                 else {
                     # use cmdstanr interface
                     require( cmdstanr , quietly=TRUE )
                     filex <- cmdstanr_model_write( model_code )
-                    mod <- cmdstan_model(
+                    mod <- cmdstanr::cmdstan_model(
                         stan_file=filex[[1]],
                       # exe_file=filex[[2]],
                         compile=filex[[3]],
@@ -1445,14 +1455,14 @@ ulam <- function( flist , data , pars , pars_omit , start , chains=1 , cores=1 ,
             } else {
                 if ( cmdstan==FALSE ) {
                     # rstan interface, previous stanfit object
-                    stanfit <- stan( fit = prev_stanfit_object , data = data , pars=use_pars , 
-                         chains=chains , cores=cores , iter=iter , control=control , warmup=warmup , ... )
+                    stanfit <- do.call(rstan::stan, c(rstan_model, list(data=data, pars=use_pars,
+                         chains=chains, cores=cores, iter=iter, control=control, warmup=warmup, ...)))
                 } else {
                     # SAME AS ABOVE FOR NOW - how to referece exe?
                     # use cmdstanr interface
                     require( cmdstanr , quietly=TRUE )
                     filex <- cmdstanr_model_write( model_code )
-                    mod <- cmdstan_model(
+                    mod <- cmdstanr::cmdstan_model(
                         stan_file=filex[[1]],
                       # exe_file=filex[[2]],
                         compile=filex[[3]],
@@ -1490,7 +1500,7 @@ ulam <- function( flist , data , pars , pars_omit , start , chains=1 , cores=1 ,
             # use cmdstanr interface
                     require( cmdstanr , quietly=TRUE )
                     filex <- cmdstanr_model_write( model_code )
-                    mod <- cmdstan_model(
+                    mod <- cmdstanr::cmdstan_model(
                         stan_file=filex[[1]],
                       # exe_file=filex[[2]],
                         compile=filex[[3]],
@@ -1553,8 +1563,14 @@ ulam <- function( flist , data , pars , pars_omit , start , chains=1 , cores=1 ,
                 #names(coef) <- names(start[[1]])
             }
         } else {
-            coef <- 1:2
-            varcov <- matrix(NA,2,2)
+            summary_pars <- setdiff(use_pars, c("log_lik","lp__","dev"))
+            coef <- numeric(0)
+            varcov <- matrix(numeric(0), ncol=1)
+            if (length(summary_pars)) {
+                s <- stanfit$summary(summary_pars, "mean", "sd")
+                coef <- stats::setNames(s$mean, s$variable)
+                varcov <- matrix(s$sd^2, ncol=1, dimnames=list(s$variable,NULL))
+            }
         }
 
         result <- new( "ulam" , 

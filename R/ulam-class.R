@@ -30,7 +30,7 @@ function( object , depth=1 , pars , prob=0.89 , digits=2 , sort=NULL , decreasin
         result <- as.data.frame( result )
     }
     if ( !is.null(attr(object,"cstanfit")) ) {
-        return( precis( attr(object,"cstanfit") , depth=depth, pars=pars , prob=prob, omit=omit , ... ) )
+        result <- as.data.frame( precis( attr(object,"cstanfit") , depth=3, pars=pars , prob=prob , ... ) )
     }
 
     banlist <- c("dev","lp__")
@@ -63,9 +63,9 @@ function(object,n,clean=TRUE,pars,...) {
     if ( missing(pars) & clean==TRUE ) pars <- object@pars
     if ( !is.null(attr(object,"cstanfit")) ) {
         # use posterior to extract draws and convert to array format
-        pr <- as_draws_rvars( attr(object,"cstanfit")$draws() )
+        pr <- as_draws_rvars( attr(object,"cstanfit")$draws(variables=if (missing(pars)) NULL else pars) )
         p <- list()
-        for ( i in 1:length(pr) )
+        for ( i in seq_along(pr) )
             p[[ names(pr)[i] ]] <- draws_of( pr[[i]] )
     } else
         # assume old rstan fit
@@ -77,23 +77,28 @@ function(object,n,clean=TRUE,pars,...) {
         p[['log_lik']] <- NULL
     }
     # get rid of those ugly dimnames
-    for ( i in 1:length(p) ) {
+    for ( i in seq_along(p) ) {
         attr(p[[i]],"dimnames") <- NULL
     }
 
-    if (FALSE ) {
     if ( !missing(n) ) {
-        tot_samples <- stan_total_samples(object@stanfit)
-        n <- min(n,tot_samples)
-        for ( i in 1:length(p) ) {
-            n_dims <- length( dim(p[[i]]) )
-            if ( n_dims==1 ) p[[i]] <- p[[i]][1:n]
-            if ( n_dims==2 ) p[[i]] <- p[[i]][1:n,]
-            if ( n_dims==3 ) p[[i]] <- p[[i]][1:n,,]
+        if (length(n) != 1L || !is.numeric(n) || !is.finite(n) || n < 1 || n != floor(n))
+            stop("n must be a positive integer", call.=FALSE)
+        if (length(p)) {
+            total <- if (is.null(dim(p[[1]]))) length(p[[1]]) else dim(p[[1]])[1]
+            rows <- seq_len(total)
+            if (!is.null(attr(object,"cstanfit")) && n < total) {
+                chains <- attr(object,"cstanfit")$num_chains()
+                # Cycle across chains so a small request represents every chain.
+                rows <- as.vector(t(matrix(rows, ncol=chains)))
+            }
+            rows <- head(rows,n)
+            p <- lapply(p, function(x) {
+                if (is.null(dim(x))) return(x[rows])
+                index <- c(list(x, rows), rep(list(TRUE), length(dim(x))-1L), list(drop=FALSE))
+                do.call(`[`, index)
+            })
         }
-    } else {
-        n <- stan_total_samples(object@stanfit)
-    }
     }
 
     model_name <- match.call()[[2]]
@@ -153,7 +158,8 @@ setMethod("show", "ulam", function(object){
         # cmdstan fit
         dur <- attr(object,"cstanfit")$time()$chains
         chains <- attr(object,"cstanfit")$num_chains()
-        iter <- attr(object,"cstanfit")$metadata()$iter_sampling
+        meta <- attr(object,"cstanfit")$metadata()
+        iter <- ceiling(meta$iter_sampling / meta$thin)
         warm <- 0 # attr(object,"cstanfit")$metadata()$iter_warmup
         # iter is just post warmup for cstan
     } else {
@@ -246,10 +252,11 @@ traceplot_ulam <- function( object , pars , chains , col=rethink_palette , alpha
     
     #if ( class(object) %in% c("map2stan","ulam") ) object <- object@stanfit
 
+    meta <- attr(object,"cstanfit")$metadata()
     # get all chains, not mixed, from stanfit
     if ( missing(pars) ) {
         # post <- extract(object,permuted=FALSE,inc_warmup=TRUE)
-        post <- as_draws_array( attr(object,"cstanfit")$draws(inc_warmup=TRUE) )
+        post <- as_draws_array( attr(object,"cstanfit")$draws(inc_warmup=meta$save_warmup) )
         dimnames <- attr(post,"dimnames")
         pars <- dimnames$variable
         # cut out "dev" and "lp__" and "log_lik"
@@ -261,7 +268,7 @@ traceplot_ulam <- function( object , pars , chains , col=rethink_palette , alpha
         if ( length(wlp)>0 ) pars <- pars[-wlp]
     } else
         #post <- extract(object,pars=pars,permuted=FALSE,inc_warmup=TRUE)
-        post <- as_draws_array( attr(object,"cstanfit")$draws(variables=pars,inc_warmup=TRUE) )
+        post <- as_draws_array( attr(object,"cstanfit")$draws(variables=pars,inc_warmup=meta$save_warmup) )
     
     # names
     dimnames <- attr(post,"dimnames")
@@ -281,7 +288,7 @@ traceplot_ulam <- function( object , pars , chains , col=rethink_palette , alpha
         paging <- TRUE
     }
     n_iter <- length(dimnames$iteration) # all iterations
-    n_warm <- attr(object,"cstanfit")$metadata()$iter_warmup
+    n_warm <- if (meta$save_warmup) ceiling(meta$iter_warmup / meta$thin) else 0
     n_samples_extracted <- dim( post )[1]
     wstart <- 1
     wend <- n_iter
@@ -321,8 +328,9 @@ traceplot_ulam <- function( object , pars , chains , col=rethink_palette , alpha
     }
     
     # fetch n_eff
-    n_eff <- summary(object)$ess_bulk
-    names(n_eff) <- rownames(summary(object))
+    stats <- summary(object)
+    n_eff <- stats$ess_bulk
+    names(n_eff) <- rownames(stats)
     
     # make window
     #set_nice_margins()

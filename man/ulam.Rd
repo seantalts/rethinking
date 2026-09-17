@@ -1,16 +1,18 @@
 \name{ulam}
 \alias{ulam}
 %- Also NEED an '\alias' for EACH other topic documented here.
-\title{Build RStan models from formulas}
+\title{Build Stan models from formulas}
 \description{
   Compiles lists of formulas into Stan model code. Allows for arbitary fixed effect and mixed effect regressions. Allows for explicit typing of variables within the formula list. Much more flexible than \code{map2stan}.
 }
 \usage{
-ulam( flist , data , pars , pars_omit , start , chains=1 , cores=1 , iter=1000 , 
-  control=list(adapt_delta=0.95) , distribution_library=ulam_dists , 
-  macro_library=ulam_macros , custom , declare_all_data=TRUE , log_lik=FALSE , 
-  sample=TRUE , messages=TRUE , pre_scan_data=TRUE , coerce_int=TRUE , 
-  sample_prior=FALSE , file=NULL , cmdstan=FALSE , threads=1 , 
+ulam( flist , data , pars , pars_omit , start , chains=1 , cores=1 , iter=1000 ,
+  warmup , control=list(adapt_delta=0.95) , distribution_library=ulam_dists ,
+  macro_library=ulam_macros , custom , constraints , declare_all_data=TRUE ,
+  log_lik=FALSE , sample=TRUE , messages=TRUE , pre_scan_data=TRUE ,
+  coerce_int=TRUE , sample_prior=FALSE , file=NULL ,
+  cmdstan=ulam_options$use_cmdstan , threads=1 , grain=1 , cpp_options=list() ,
+  cpp_fast=FALSE , rstanout=FALSE , force_compile=TRUE ,
   stanc_options=list("O1") , ... )
 }
 %- maybe also 'usage' for other objects documented here.
@@ -23,6 +25,7 @@ ulam( flist , data , pars , pars_omit , start , chains=1 , cores=1 , iter=1000 ,
   \item{chains}{Number of independent chains to sample from}
   \item{cores}{Number of processor cores to distribute chains over.}
   \item{iter}{Number of iterations of sampling. By default, half of these iterations are warmup.}
+  \item{warmup}{Number of warmup iterations; defaults to half of \code{iter}.}
   \item{control}{Optional list of control parameters for \code{stan}. Default increases target acceptance rate (\code{adapt_delta}) to 0.95.}
   \item{distribution_library}{List of distribution templates.}
   \item{macro_library}{List of function and distribution macros.}
@@ -34,11 +37,17 @@ ulam( flist , data , pars , pars_omit , start , chains=1 , cores=1 , iter=1000 ,
   \item{pre_scan_data}{Scan data at start to (1) check for variables that are integer but not type integer and (2) strip any scale() attributes}
   \item{coerce_int}{If \code{pre_scan_data}, forces integer variables to be type integer}
   \item{sample_prior}{If \code{TRUE}, removes data probabilities from model to sample only prior distribution of parameters. Used by corresponding \code{extract.prior} method.}
-  \item{messages}{If \code{TRUE}, prints various internal steps to help with debugging}
   \item{file}{If character string X, loads X.rds instead of fitting when exists; otherwise saves result to X.rds}
   \item{cmdstan}{When TRUE, uses cmdstanr instead of rstan to run chains. To make cmdstan the default engine, use \code{set_ulam_cmdstan(TRUE)}.}
   \item{threads}{When threads > 1, attempts to multithread individual chains using Stan's reduce_sum function. Requires cmdstan=TRUE.}
-  \item{...}{Additional arguments to pass to \code{\link{stan}}}
+  \item{constraints}{Optional named list of Stan parameter constraints.}
+  \item{grain}{Grain size for within-chain threading with CmdStan.}
+  \item{cpp_options}{C++ compiler options for CmdStan.}
+  \item{cpp_fast}{Enable fast C++ compiler settings for CmdStan.}
+  \item{rstanout}{Convert a CmdStan fit to an RStan fit.}
+  \item{force_compile}{Retained for compatibility.}
+  \item{stanc_options}{Stan compiler options for CmdStan.}
+  \item{...}{Additional arguments passed to the selected sampler.}
 }
 \details{
   \code{ulam} provides a slim version of Stan syntax that omits blocks but still allows for explicit variable types and dimensions. The basic model formula is the same as \code{map2stan}, but the syntax does not assume a GLMM structure. This allows it to be more flexible, but it also means more mistakes are possible. With great power comes great responsibility. 

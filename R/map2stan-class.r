@@ -129,7 +129,7 @@ function (object, ...)
 
 stan_sampling_duration <- function(object) {
     if ( class(object)=="map2stan" | class(object)=="ulam" ) object <- object@stanfit
-    dur <- get_elapsed_time(object)
+    dur <- rstan::get_elapsed_time(object)
     totals <- rep(NA,nrow(dur))
     for ( i in 1:nrow(dur) ) totals[i] <- sum( dur[i,] )
     dur <- cbind( dur , totals )
