@@ -7,6 +7,6 @@ Author: Richard McElreath
 Maintainer: Richard McElreath <richard_mcelreath@eva.mpg.de>
 Imports: coda, MASS, mvtnorm, loo, shape
 Depends: R (>= 4.0.0), cmdstanr, posterior, parallel, methods, stats, graphics
-Suggests: testthat, dagitty
+Suggests: testthat (>= 3.2.0), dagitty, stanli (>= 0.14.4)
 Description: Utilities for fitting and comparing models
 License: GPL (>= 3)

@@ -19,6 +19,40 @@ The first formula in the list is the probability of the outcome (likelihood); th
 
 # Installation
 
+### Optional Stanli backend: skip CmdStan and the C++ toolchain
+
+`ulam(..., backend = "stanli")` runs Stan code through Stanli's prebuilt
+runtime. On supported macOS and Windows R versions, install its R binary:
+
+```r
+install.packages("stanli", repos = c("https://seantalts.r-universe.dev",
+                                     "https://cloud.r-project.org"), type = "binary")
+stopifnot(packageVersion("stanli") >= "0.14.4")
+stanli::stanli_install()
+library(rethinking)
+options(rethinking.backend = "stanli")
+```
+
+With this backend you can skip the CmdStan and C++ toolchain setup below.
+Rethinking still depends on the cmdstanr R package; installing that package
+alone does not install CmdStan or compile models. Stanli's native model and
+fit adapters are included by default and do not require RStan. R-universe
+binaries can lag a release; the version check prevents using an older API.
+For provisioned Linux binaries, see Stanli's
+[teaching guide](https://github.com/seantalts/stanli/blob/main/docs/teaching.md).
+
+Choose `backend = "stanli"` per fit or set the session option above. Existing
+fits retain their backend for refits and prior extraction. `cores` controls
+parallel chains; within-chain threading, C++ flags, and `rstanout` are not
+supported. Sampling uses ulam's existing CmdStanR argument translation and
+Stanli's native `$sample()` interface.
+
+The [benchmark and numerical comparison report](https://github.com/seantalts/stanli/blob/e27bad198713c99e7c22996b29138b08640fabab/output/pdf/rethinking-report.pdf)
+compares model speedups and numerical results across 61 book call sites.
+
+### CmdStan backend
+
+
 There are three steps. (1) Install the C++ toolchain, (2) install ``cmdstanr``, (3) install ``rethinking``. Details follow.
 
 First, install the C++ toolchain. Go to ``https://mc-stan.org/docs/cmdstan-guide/cmdstan-installation.html#cpp-toolchain`` and follow the instructions for your platform.

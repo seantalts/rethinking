@@ -11,7 +11,7 @@ ulam( flist , data , pars , pars_omit , start , chains=1 , cores=1 , iter=1000 ,
   macro_library=ulam_macros , custom , declare_all_data=TRUE , log_lik=FALSE , 
   sample=TRUE , messages=TRUE , pre_scan_data=TRUE , coerce_int=TRUE , 
   sample_prior=FALSE , file=NULL , cmdstan=FALSE , threads=1 , 
-  stanc_options=list("O1") , ... )
+  stanc_options=list("O1") , backend=getOption("rethinking.backend", NULL) , ... )
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -37,6 +37,7 @@ ulam( flist , data , pars , pars_omit , start , chains=1 , cores=1 , iter=1000 ,
   \item{messages}{If \code{TRUE}, prints various internal steps to help with debugging}
   \item{file}{If character string X, loads X.rds instead of fitting when exists; otherwise saves result to X.rds}
   \item{cmdstan}{When TRUE, uses cmdstanr instead of rstan to run chains. To make cmdstan the default engine, use \code{set_ulam_cmdstan(TRUE)}.}
+  \item{backend}{Optional sampling engine: \code{"cmdstanr"}, \code{"rstan"}, or \code{"stanli"}. Defaults to \code{getOption("rethinking.backend", NULL)}, then the legacy \code{cmdstan} selection. An explicit \code{cmdstan} argument takes precedence over the session option. A refit or prior fit inherits its engine when no other backend is selected. Stanli requires version 0.14.4 or later and uses its native model and fit interfaces. It supports parallel chains through \code{cores}, but requires \code{threads=1}; \code{rstanout}, C++ options, and custom stanc options are unsupported.}
   \item{threads}{When threads > 1, attempts to multithread individual chains using Stan's reduce_sum function. Requires cmdstan=TRUE.}
   \item{...}{Additional arguments to pass to \code{\link{stan}}}
 }

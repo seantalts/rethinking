@@ -30,7 +30,7 @@ function( object , depth=1 , pars , prob=0.89 , digits=2 , sort=NULL , decreasin
         result <- as.data.frame( result )
     }
     if ( !is.null(attr(object,"cstanfit")) ) {
-        return( precis( attr(object,"cstanfit") , depth=depth, pars=pars , prob=prob, omit=omit , ... ) )
+        return( precis_cmdstanfit( attr(object,"cstanfit") , depth=depth, pars=pars , prob=prob, omit=omit , ... ) )
     }
 
     banlist <- c("dev","lp__")

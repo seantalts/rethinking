@@ -261,7 +261,7 @@ function( fit , n=1000 , ... ) {
 
 extract_prior_ulam <- function( fit , n=1000 , iter=2*n , chains=1 , ... ) {
     # call ulam with formula in fit, but setting sample_prior=TRUE
-    mp <- ulam( fit@formula, data=fit@data , iter=iter, chains=chains , sample_prior=TRUE , ... )
+    mp <- ulam( fit, data=fit@data , iter=iter, chains=chains , sample_prior=TRUE , ... )
     p <- extract.samples(mp)
     model_name <- match.call()[[2]]
     attr(p,"source") <- concat( "ulam prior: ", n , " samples from " , model_name )

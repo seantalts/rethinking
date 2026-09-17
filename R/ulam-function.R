@@ -20,7 +20,7 @@ ulam_options$use_cmdstan <- TRUE
 #if ( require(cmdstanr) ) ulam_options$use_cmdstan <- TRUE
 set_ulam_cmdstan <- function(x=TRUE) assign( "use_cmdstan" , x , env=ulam_options )
 
-ulam <- function( flist , data , pars , pars_omit , start , chains=1 , cores=1 , iter=1000 , warmup , control=list(adapt_delta=0.95) , distribution_library=ulam_dists , macro_library=ulam_macros , custom , constraints , declare_all_data=TRUE , log_lik=FALSE , sample=TRUE , messages=TRUE , pre_scan_data=TRUE , coerce_int=TRUE , sample_prior=FALSE , file=NULL , cmdstan=ulam_options$use_cmdstan , threads=1 , grain=1 , cpp_options=list() , cpp_fast=FALSE , rstanout=FALSE , force_compile=TRUE , stanc_options=list("O1") , ... ) {
+ulam <- function( flist , data , pars , pars_omit , start , chains=1 , cores=1 , iter=1000 , warmup , control=list(adapt_delta=0.95) , distribution_library=ulam_dists , macro_library=ulam_macros , custom , constraints , declare_all_data=TRUE , log_lik=FALSE , sample=TRUE , messages=TRUE , pre_scan_data=TRUE , coerce_int=TRUE , sample_prior=FALSE , file=NULL , cmdstan=ulam_options$use_cmdstan , threads=1 , grain=1 , cpp_options=list() , cpp_fast=FALSE , rstanout=FALSE , force_compile=TRUE , stanc_options=list("O1") , backend=getOption("rethinking.backend", NULL) , ... ) {
 
     if ( !is.null(file) ) {
         rds_file_name <- concat( file , ".rds" )
@@ -29,6 +29,22 @@ ulam <- function( flist , data , pars , pars_omit , start , chains=1 , cores=1 ,
             result <- readRDS( file=rds_file_name )
             return(result) # exit
         }
+    }
+
+    # engine selection: explicit cmdstan= beats the session option; a refit keeps its engine
+    if ( missing(backend) && !missing(cmdstan) ) backend <- NULL
+    if ( is.null(backend) && missing(cmdstan) && inherits(flist,"ulam") ) backend <- attr(flist,"backend")
+    if ( is.null(backend) ) backend <- if ( cmdstan ) "cmdstanr" else "rstan"
+    backend <- match.arg( backend , c("cmdstanr","rstan","stanli") )
+    cmdstan <- backend != "rstan"
+    if ( backend=="stanli" ) {
+        if ( threads != 1 ) stop( "backend='stanli' requires threads=1; use cores for parallel chains." )
+        if ( rstanout ) stop( "rstanout is not supported by backend='stanli'." )
+        if ( length(cpp_options) || cpp_fast || !identical(stanc_options,list("O1")) )
+            stop( "C++ and stanc_options are not supported by backend='stanli'." )
+        if ( sample && (!requireNamespace("stanli",quietly=TRUE) ||
+             utils::packageVersion("stanli") < "0.14.4") )
+            stop( "Install stanli >= 0.14.4 to use backend='stanli'." )
     }
 
     if ( !missing(data) )
@@ -1400,6 +1416,14 @@ ulam <- function( flist , data , pars , pars_omit , start , chains=1 , cores=1 ,
         return(list(file_stan,file_exe,do_compile))
     }
 
+    # choose the model constructor once; the mod$sample() calls below are shared by both engines
+    stan_model_prepare <- function( the_model ) {
+        if ( backend=="stanli" ) return( stanli::cstan_model( the_model ) )
+        require( cmdstanr , quietly=TRUE )
+        filex <- cmdstanr_model_write( the_model )
+        cmdstan_model( stan_file=filex[[1]], compile=filex[[3]], cpp_options=cpp_options, stanc_options=stanc_options )
+    }
+
     #if ( threads>1 ) 
     cpp_options[['stan_threads']] <- TRUE
 
@@ -1419,14 +1443,7 @@ ulam <- function( flist , data , pars , pars_omit , start , chains=1 , cores=1 ,
                     stanfit <- stan( model_code = model_code , data = data , pars=use_pars , chains=chains , cores=cores , iter=iter , control=control , warmup=warmup , ... )
                 else {
                     # use cmdstanr interface
-                    require( cmdstanr , quietly=TRUE )
-                    filex <- cmdstanr_model_write( model_code )
-                    mod <- cmdstan_model(
-                        stan_file=filex[[1]],
-                      # exe_file=filex[[2]],
-                        compile=filex[[3]],
-                        cpp_options=cpp_options,
-                        stanc_options=stanc_options )
+                    mod <- stan_model_prepare( model_code )
                     # set_num_threads( threads )
                     # iter means only post-warmup samples for cmdstanr
                     # so need to compute iter explicitly
@@ -1450,14 +1467,7 @@ ulam <- function( flist , data , pars , pars_omit , start , chains=1 , cores=1 ,
                 } else {
                     # SAME AS ABOVE FOR NOW - how to referece exe?
                     # use cmdstanr interface
-                    require( cmdstanr , quietly=TRUE )
-                    filex <- cmdstanr_model_write( model_code )
-                    mod <- cmdstan_model(
-                        stan_file=filex[[1]],
-                      # exe_file=filex[[2]],
-                        compile=filex[[3]],
-                        cpp_options=cpp_options,
-                        stanc_options=stanc_options )
+                    mod <- stan_model_prepare( model_code )
                     # set_num_threads( threads )
                     # iter means only post-warmup samples for cmdstanr
                     # so need to compute iter explicitly
@@ -1488,14 +1498,7 @@ ulam <- function( flist , data , pars , pars_omit , start , chains=1 , cores=1 ,
             #    stanfit <- stan( fit = prev_stanfit_object , data = data , pars=use_pars , 
             #             chains=chains , cores=cores , iter=iter , control=control , init=f_init , warmup=warmup , ... )
             # use cmdstanr interface
-                    require( cmdstanr , quietly=TRUE )
-                    filex <- cmdstanr_model_write( model_code )
-                    mod <- cmdstan_model(
-                        stan_file=filex[[1]],
-                      # exe_file=filex[[2]],
-                        compile=filex[[3]],
-                        cpp_options=cpp_options,
-                        stanc_options=stanc_options )
+                    mod <- stan_model_prepare( model_code )
                     # set_num_threads( threads )
                     # iter means only post-warmup samples for cmdstanr
                     # so need to compute iter explicitly
@@ -1575,6 +1578,7 @@ ulam <- function( flist , data , pars , pars_omit , start , chains=1 , cores=1 ,
             attr(result,"cstanfit") <- stanfit
         }
         
+        attr(result,"backend") <- backend
         attr(result,"generation") <- "ulam2018"
         if ( nobs_save > 0 ) attr(result,"nobs") <- nobs_save
 
