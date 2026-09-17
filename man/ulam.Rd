@@ -21,7 +21,7 @@ ulam( flist , data , pars , pars_omit , start , chains=1 , cores=1 , iter=1000 ,
   \item{data}{A data frame or list containing the data}
   \item{pars}{Optional: character vector of parameters to return samples for}
   \item{pars_omit}{Optional: character vector of parameters to exclude from samples}
-  \item{start}{Optional. Either: (1) a named list specifying parameters and their initial values or (2) a function to return such a named list.}
+  \item{start}{Optional. Either: (1) a named list specifying parameters and their initial values or (2) a function to return such a named list or (3) one such list per chain.}
   \item{chains}{Number of independent chains to sample from}
   \item{cores}{Number of processor cores to distribute chains over.}
   \item{iter}{Number of iterations of sampling. By default, half of these iterations are warmup.}

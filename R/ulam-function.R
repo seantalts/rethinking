@@ -1448,7 +1448,7 @@ ulam <- function( flist , data , pars , pars_omit , start , chains=1 , cores=1 ,
                 rstan_model <- list(fit=prev_stanfit_object)
         }
         if ( cmdstan==FALSE && length(start)>0 ) {
-            f_init <- if (is.function(start)) start else function() start
+            f_init <- if (is.function(start) || is.null(names(start))) start else function() start
             stanfit <- do.call(rstan::stan, c(rstan_model, list(data=data, pars=use_pars,
                 chains=chains, cores=cores, iter=iter, warmup=warmup,
                 control=control, init=f_init, ...)))

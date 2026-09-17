@@ -34,3 +34,16 @@ test_that("RStan duration lookup does not require an attached package", {
     fit <- methods::new(methods::getClass("stanfit",where=asNamespace("rstan")),mode=2L)
     expect_equal(unname(stan_sampling_duration(fit)[,3]),c(4,6))
 })
+
+test_that("RStan accepts per-chain starts without wrapping them in a function", {
+    skip_if_not_installed("rstan")
+    seen <- NULL
+    testthat::local_mocked_bindings(stan=function(...) {
+        seen <<- list(...)
+        stop("selected RStan")
+    },.package="rstan")
+    starts <- list(list(a=.1),list(a=.2))
+    expect_error(ulam(alist(y ~ normal(a,1), a ~ normal(0,1)),
+        data=list(y=c(.1,.9)),cmdstan=FALSE,chains=2,start=starts),"selected RStan")
+    expect_identical(seen$init,starts)
+})
