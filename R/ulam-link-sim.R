@@ -227,6 +227,7 @@ sim_ulam_new <- function( fit , data , post , vars , variable , n=1000 , replace
     
     if ( missing(post) ) {
         post <- extract.samples(fit,n=n)
+        n <- min(n, dim(post[[1]])[1])
     } else {
         n <- dim(post[[1]])[1]
         if ( is.null(n) ) n <- length(post[[1]])
@@ -253,6 +254,6 @@ sim_ulam_new <- function( fit , data , post , vars , variable , n=1000 , replace
 
 }
 
-setMethod( "sim" , "ulam" , function(fit,data,...) sim_ulam_new(fit,data,...) )
+setMethod( "sim" , "ulam" , function(fit,data,n=1000,...) sim_ulam_new(fit,data,n=n,...) )
 
 

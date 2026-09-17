@@ -109,7 +109,7 @@ setMethod("LOO", "stanfit", PSIS_stanfit )
 #}
 PSIS_ulam <- function( object , n=0 , refresh=0.1 , pointwise=FALSE , log_lik="log_lik" , warn=TRUE , ... ) {
 
-    loo_list <- suppressWarnings( attr(object,"cstanfit")$loo() )
+    loo_list <- suppressWarnings( attr(object,"cstanfit")$loo(variables=log_lik, ...) )
 
     if ( pointwise==TRUE ) {
         looIC <- as.vector( loo_list$pointwise[,4] )

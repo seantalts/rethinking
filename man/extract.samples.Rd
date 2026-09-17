@@ -21,6 +21,12 @@ extract.prior( object , n=1000 , pars , ... )
 
   For \code{map2stan} and \code{stanfit} models, \code{extract.samples} returns cleaned samples already contained in the object. These samples are cleaned of dimension attributes and the \code{lp__}, \code{dev}, and \code{log_lik} traces that are used internally. For \code{map} and other types, it uses the variance-covariance matrix and coefficients to define a multivariate Gaussian posterior to draw \code{n} samples from.
 
+  For \code{ulam} fits, \code{n} limits the returned posterior draws without
+  replacement. With the CmdStanR backend, partial requests cycle
+  across chains and preserve joint draws. The default cleaned extraction
+  follows the fit's parameter selection; use \code{clean=FALSE} to include all
+  recorded outputs.
+
   \code{extract.prior} must simulate draws using the model definition. It attempts to return samples in the same list structure as posterior samples. This makes prior-posterior comparison easier. See examples below.
 }
 \value{
