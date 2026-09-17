@@ -22,9 +22,14 @@ The first formula in the list is the probability of the outcome (likelihood); th
 ### Optional Stanli backend: skip CmdStan and the C++ toolchain
 
 `ulam(..., backend = "stanli")` runs Stan code through Stanli's prebuilt
-runtime. On supported macOS and Windows R versions, install its R binary:
+runtime. On supported macOS and Windows R versions, install the R packages
+and prebuilt runtime:
 
 ```r
+install.packages(c("remotes", "cmdstanr"),
+                 repos = c("https://stan-dev.r-universe.dev", "https://cloud.r-project.org"),
+                 type = "binary")
+remotes::install_github("rmcelreath/rethinking", dependencies = NA)
 install.packages("stanli", repos = c("https://seantalts.r-universe.dev",
                                      "https://cloud.r-project.org"), type = "binary")
 stopifnot(packageVersion("stanli") >= "0.14.4")
