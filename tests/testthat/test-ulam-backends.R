@@ -30,3 +30,30 @@ test_that("constructor selection preserves the existing sampling calls", {
     expect_error(ulam(f,data=d,backend="cmdstanr"),"selected cmdstanr")
     expect_error(ulam(f,data=d),"selected stanli")
 })
+
+test_that("prior inheritance preserves formula-based generation and explicit overrides", {
+    f <- alist(y ~ normal(a,1), a ~ normal(0,1))
+    fit <- methods::new("ulam",call=quote(ulam()),formula=f,data=list(y=c(.1,.9)))
+    seen <- NULL
+    testthat::local_mocked_bindings(ulam=function(...) {
+        seen <<- list(...)
+        stop("prior call captured")
+    },.package="rethinking")
+    old <- options(rethinking.backend=NULL)
+    on.exit(options(old),add=TRUE)
+    for (engine in c("stanli","cmdstanr","rstan")) {
+        attr(fit,"backend") <- engine
+        expect_error(extract.prior(fit,n=10),"prior call captured")
+        expect_identical(seen$flist,f)
+        expect_identical(seen$backend,engine)
+        expect_true(seen$sample_prior)
+    }
+    expect_error(extract.prior(fit,n=10,cmdstan=TRUE),"prior call captured")
+    expect_false("backend" %in% names(seen))
+    expect_true(seen$cmdstan)
+    expect_error(extract.prior(fit,n=10,backend="stanli"),"prior call captured")
+    expect_identical(seen$backend,"stanli")
+    options(rethinking.backend="cmdstanr")
+    expect_error(extract.prior(fit,n=10),"prior call captured")
+    expect_identical(seen$backend,"cmdstanr")
+})
