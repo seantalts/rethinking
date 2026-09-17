@@ -10,3 +10,4 @@ Depends: R (>= 4.0.0), cmdstanr, posterior, parallel, methods, stats, graphics
 Suggests: testthat (>= 3.2.0), dagitty, stanli (>= 0.14.4)
 Description: Utilities for fitting and comparing models
 License: GPL (>= 3)
+Additional_repositories: https://seantalts.r-universe.dev
