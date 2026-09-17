@@ -18,4 +18,6 @@ Validation: 76 assertions pass on this branch independently of the general fixes
 
 This branch starts directly from upstream master and does not include or require the [separate general fixes proposal](https://github.com/seantalts/rethinking/pull/1). Those fixes address existing sampling-argument and posterior-method bugs for both engines. Applying both proposals passes the 146-assertion combined suite plus 57 retained and extended Stanli assertions, including tree depth, empty controls, unsaved warmup, per-chain starts, and repaired posterior behavior. Their known upstream formula warnings remain. The backend alone preserves upstream limitations in those shared methods.
 
+To install this fork for review, use `remotes::install_github("seantalts/rethinking@feat/ulam-stanli-backend", dependencies=NA)` in place of the upstream installation command in the README. The README is written for the proposed upstream package.
+
 This is a review branch on seantalts/rethinking. No PR has been submitted to rmcelreath/rethinking.
