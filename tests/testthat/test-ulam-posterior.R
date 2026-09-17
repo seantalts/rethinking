@@ -107,3 +107,29 @@ test_that("PSIS forwards custom likelihood variables and LOO options", {
     expect_equal(result$PSIS,as.vector(expected$pointwise[,"looic"]))
     expect_equal(result$lppd,as.vector(expected$pointwise[,"elpd_loo"]))
 })
+
+test_that("unknown and out-of-range pars keep the completed fit", {
+    expect_warning(fit <- ulam_fixture(pars=c("a","typo","z[3,1]")),
+                   "Ignoring unavailable pars: z[3,1], typo", fixed=TRUE)
+    expect_identical(fit@pars,"a")
+    expect_true(inherits(attr(fit,"cstanfit"),"CmdStanMCMC"))
+    expect_identical(rownames(precis(fit)),"a")
+    # Base, indexed, and generated-quantity names all remain valid.
+    indexed <- ulam_fixture(pars=c("z[1,1]","mu"))
+    expect_setequal(indexed@pars,c("z[1,1]","mu"))
+    expect_length(indexed@coef,2)
+})
+
+test_that("ulam summary filters log likelihood before computing statistics and retains lp", {
+    fit <- ulam_fixture(log_lik=TRUE)
+    original <- attr(fit,"cstanfit")$summary
+    seen <- NULL
+    attr(fit,"cstanfit") <- list(summary=function(variables,...) {
+        seen <<- variables
+        original(variables,...)
+    })
+    expect_true("lp__" %in% rownames(precis(fit,lp__=TRUE)))
+    expect_false(any(grepl("^log_lik",seen)))
+    expect_false("lp__" %in% rownames(precis(fit)))
+    expect_length(seen,2)
+})

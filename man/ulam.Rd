@@ -26,7 +26,7 @@ ulam( flist , data , pars , pars_omit , start , chains=1 , cores=1 , iter=1000 ,
   \item{cores}{Number of processor cores to distribute chains over.}
   \item{iter}{Number of iterations of sampling. By default, half of these iterations are warmup.}
   \item{warmup}{Number of warmup iterations; defaults to half of \code{iter}.}
-  \item{control}{Optional list of control parameters for \code{stan}. Default increases target acceptance rate (\code{adapt_delta}) to 0.95.}
+  \item{control}{Optional list of control parameters. With CmdStanR, named entries are forwarded to its sampler, including \code{adapt_delta} and \code{max_treedepth}. An empty or NULL list uses \code{adapt_delta=0.95}. Entries must not also be supplied in \code{...}. With RStan, the list is passed to \code{rstan::stan}.}
   \item{distribution_library}{List of distribution templates.}
   \item{macro_library}{List of function and distribution macros.}
   \item{custom}{Optional list of custom resources. See details and examples.}
@@ -47,7 +47,7 @@ ulam( flist , data , pars , pars_omit , start , chains=1 , cores=1 , iter=1000 ,
   \item{rstanout}{Convert a CmdStan fit to an RStan fit.}
   \item{force_compile}{Retained for compatibility.}
   \item{stanc_options}{Stan compiler options for CmdStan.}
-  \item{...}{Additional arguments passed to the selected sampler.}
+  \item{...}{With CmdStanR, \code{save_warmup=FALSE} disables warmup retention. Additional arguments passed to the selected sampler.}
 }
 \details{
   \code{ulam} provides a slim version of Stan syntax that omits blocks but still allows for explicit variable types and dimensions. The basic model formula is the same as \code{map2stan}, but the syntax does not assume a GLMM structure. This allows it to be more flexible, but it also means more mistakes are possible. With great power comes great responsibility. 

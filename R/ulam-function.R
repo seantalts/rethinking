@@ -1408,6 +1408,37 @@ ulam <- function( flist , data , pars , pars_omit , start , chains=1 , cores=1 ,
         cpp_options[['STAN_CPP_OPTIMS']] <- TRUE
     }
 
+    # Merge shared sampler options before compiling. Explicit dots may override
+    # defaults, but must not conflict with control or start.
+    if ( sample && cmdstan ) {
+        dots <- list(...)
+        if (is.null(control)) control <- list()
+        if (!is.null(control) && (!is.list(control) || (length(control) &&
+            (is.null(names(control)) || anyNA(names(control)) ||
+             any(!nzchar(names(control))) || anyDuplicated(names(control))))))
+            stop("control must be a uniquely named list", call.=FALSE)
+        if (length(dots) && (is.null(names(dots)) || anyNA(names(dots)) ||
+            any(!nzchar(names(dots))) || anyDuplicated(names(dots))))
+            stop("sampling arguments must be uniquely named", call.=FALSE)
+        reserved <- c("data","chains","parallel_chains","iter_warmup","iter_sampling","threads_per_chain")
+        if (length(intersect(c(names(control),names(dots)), reserved)))
+            stop("Conflicting sampling arguments; use ulam's data, chains, cores, iter, warmup, and threads", call.=FALSE)
+        if (length(intersect(names(control), names(dots))) ||
+            (length(start) && "init" %in% names(dots)))
+            stop("Conflicting sampling arguments in control, start, and ...", call.=FALSE)
+        control <- Filter(Negate(is.null), control)
+        sample_args <- utils::modifyList(list(data=data, chains=chains,
+            parallel_chains=cores, iter_warmup=warmup,
+            iter_sampling=floor(iter-warmup), save_warmup=TRUE,
+            adapt_delta=0.95, threads_per_chain=threads), control)
+        sample_args <- utils::modifyList(sample_args, dots, keep.null=TRUE)
+        sample_cmdstan <- function(mod, init=NULL) {
+            args <- sample_args
+            if (!is.null(init)) args$init <- init
+            do.call(mod$sample, args)
+        }
+    }
+
     # fire lasers pew pew
     if ( sample==TRUE ) {
         if ( cmdstan==FALSE ) {
@@ -1440,13 +1471,7 @@ ulam <- function( flist , data , pars , pars_omit , start , chains=1 , cores=1 ,
                     # set_num_threads( threads )
                     # iter means only post-warmup samples for cmdstanr
                     # so need to compute iter explicitly
-                    cmdstanfit <- mod$sample( 
-                        data=data , 
-                        chains=chains , parallel_chains=cores , 
-                        iter_warmup=warmup, iter_sampling=floor(iter-warmup) , 
-                        save_warmup=TRUE ,
-                        adapt_delta=as.numeric(control[['adapt_delta']]) ,
-                        threads_per_chain=threads , ... )
+                    cmdstanfit <- sample_cmdstan(mod)
                     if ( rstanout==TRUE )
                         stanfit <- rstan::read_stan_csv(cmdstanfit$output_files())
                     else
@@ -1471,13 +1496,7 @@ ulam <- function( flist , data , pars , pars_omit , start , chains=1 , cores=1 ,
                     # set_num_threads( threads )
                     # iter means only post-warmup samples for cmdstanr
                     # so need to compute iter explicitly
-                    cmdstanfit <- mod$sample( 
-                        data=data , 
-                        chains=chains , parallel_chains=cores , 
-                        iter_warmup=warmup, iter_sampling=floor(iter-warmup) , 
-                        save_warmup=TRUE ,
-                        adapt_delta=as.numeric(control[['adapt_delta']]) ,
-                        threads_per_chain=threads , ... )
+                    cmdstanfit <- sample_cmdstan(mod)
                     if ( rstanout==TRUE )
                         stanfit <- rstan::read_stan_csv(cmdstanfit$output_files())
                     else
@@ -1489,8 +1508,8 @@ ulam <- function( flist , data , pars , pars_omit , start , chains=1 , cores=1 ,
             # now with experimental cmdstanr interface
             # need some new tests for inits
             f_init <- "random"
-            if ( class(start)=="list" ) f_init <- function() return(start)
-            if ( class(start)=="function" ) f_init <- start
+            if ( is.list(start) ) f_init <- if (is.null(names(start))) start else function() start
+            if ( is.function(start) ) f_init <- start
             #if ( prev_stanfit==FALSE )
             #    stanfit <- stan( model_code = model_code , data = data , pars=use_pars , 
             #             chains=chains , cores=cores , iter=iter , control=control , init=f_init , warmup=warmup , ... )
@@ -1509,14 +1528,7 @@ ulam <- function( flist , data , pars , pars_omit , start , chains=1 , cores=1 ,
                     # set_num_threads( threads )
                     # iter means only post-warmup samples for cmdstanr
                     # so need to compute iter explicitly
-                    cmdstanfit <- mod$sample( 
-                        data=data , 
-                        chains=chains , parallel_chains=cores , 
-                        iter_warmup=warmup, iter_sampling=floor(iter-warmup) , 
-                        save_warmup=TRUE ,
-                        adapt_delta=as.numeric(control[['adapt_delta']]) ,
-                        init = f_init ,
-                        threads_per_chain=threads , ... )
+                    cmdstanfit <- sample_cmdstan(mod, init=f_init)
                     if ( rstanout==TRUE )
                         stanfit <- rstan::read_stan_csv(cmdstanfit$output_files())
                     else
@@ -1563,6 +1575,15 @@ ulam <- function( flist , data , pars , pars_omit , start , chains=1 , cores=1 ,
                 #names(coef) <- names(start[[1]])
             }
         } else {
+            # Validate against actual output names, including indexed and custom
+            # generated quantities. A typo must not discard a completed fit.
+            available <- stanfit$metadata()$variables
+            available <- union(available, sub("\\[.*$", "", available))
+            unknown <- setdiff(use_pars, available)
+            if (length(unknown)) {
+                warning("Ignoring unavailable pars: ", paste(unknown, collapse=", "), call.=FALSE)
+                use_pars <- intersect(use_pars, available)
+            }
             summary_pars <- setdiff(use_pars, c("log_lik","lp__","dev"))
             coef <- numeric(0)
             varcov <- matrix(numeric(0), ncol=1)

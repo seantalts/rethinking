@@ -25,12 +25,19 @@ function( object , depth=1 , pars , prob=0.89 , digits=2 , sort=NULL , decreasin
     # so want to filter at minimum by object@pars
     if ( missing(pars) ) pars <- object@pars
 
+    # Exclude potentially thousands of log-likelihood columns before summaries.
+    pars <- pars[!grepl("^log_lik($|\\[)", pars)]
+    if (lp__) pars <- union(pars, "lp__")
+
     if ( !is.null(attr(object,"stanfit")) ) {
         result <- summary( attr(object,"stanfit") ,pars=pars,probs=c(low,upp))$summary[,c(1,3:7)]
         result <- as.data.frame( result )
     }
     if ( !is.null(attr(object,"cstanfit")) ) {
-        result <- as.data.frame( precis( attr(object,"cstanfit") , depth=3, pars=pars , prob=prob , ... ) )
+        result <- as.data.frame(attr(object,"cstanfit")$summary(variables=pars,
+            "mean", "sd", ~quantile(.x, probs=c(low,upp)), "rhat", "ess_bulk"))
+        rownames(result) <- result$variable
+        result$variable <- NULL
     }
 
     banlist <- c("dev","lp__")
